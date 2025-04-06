@@ -1,4 +1,4 @@
-- 👋 Hi, I’m @Resolute-ESG
+- 👋 Hi, I’m Gary @Resolute-ESG
 - 👀 I’m interested in developing ESG tools
 - 🌱 I’m currently refining my ESG risk rating app
 - 💞️ I’m looking to collaborate on tools that deliver Purpose..

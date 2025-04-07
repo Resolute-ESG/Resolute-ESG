@@ -1,144 +1,112 @@
-# ESG Risk Tool (real-time, OpenAI-powered)
+# ESG Risk Assessment Streamlit App (ChatGPT-powered frontend)
 
 import streamlit as st
 import pandas as pd
 import openai
-import requests
-from bs4 import BeautifulSoup
-import urllib.parse
 import io
-from fpdf import FPDF
+from datetime import datetime
 
-# Set up Streamlit page
+# --- Configuration ---
 st.set_page_config(page_title="ESG Risk Assessment Tool", layout="wide")
-st.title("ESG Risk Assessment for up to 10 Suppliers")
+st.title("ESG Risk Rating Tool (ChatGPT-Powered)")
 
-# Load API key
+# --- Load API Key from secrets.toml ---
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-st.markdown("""
-This tool:
-- Analyzes ESG risk using real-time sentiment & data enrichment
-- Calculates emissions and scope using UK Gov categories
-- Flags ethical risks, LLW, B-Corp, Sedex, Modern Slavery
-- Applies AI-based confidence scoring
-- Produces color-coded Excel or PDF reports
-""")
-
-# Supplier input
-columns = ["Supplier Name", "Spend"]
-data = []
-
-with st.form("supplier_form"):
-    st.subheader("Enter Supplier Details")
+# --- User Input ---
+st.markdown("Enter supplier name(s) and spend to generate a full ESG risk report.")
+with st.form("esg_form"):
+    suppliers_data = []
     for i in range(10):
-        col1, col2 = st.columns([3, 2])
-        with col1:
-            name = st.text_input(f"Supplier {i+1} Name")
-        with col2:
-            spend = st.number_input(f"Spend for Supplier {i+1} (GBP)", min_value=0.0, step=100.0)
+        cols = st.columns([4, 2])
+        name = cols[0].text_input(f"Supplier {i+1} Name")
+        spend = cols[1].number_input(f"Spend (£) for Supplier {i+1}", min_value=0.0, step=100.0)
         if name:
-            data.append({"Supplier Name": name, "Spend": spend})
-    submitted = st.form_submit_button("Run ESG Risk Assessment")
+            suppliers_data.append({"name": name, "spend": spend})
+    submitted = st.form_submit_button("Run ESG Assessment")
 
-# Util: Live Google search summary
-def search_google_summary(query):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        url = f"https://www.google.com/search?q={urllib.parse.quote_plus(query)}"
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.text, "html.parser")
-        results = soup.find_all("div", class_="BNeawe s3v9rd AP7Wnd")
-        return results[0].get_text() if results else "No significant findings."
-    except:
-        return "Search failed."
+# --- Prompt Template ---
+base_prompt = """
+You are an expert ESG risk assessment analyst. Run a comprehensive ESG analysis for the following suppliers using real data and web sentiment where possible. Use UK Government carbon conversion categories, apply relevant UNSPSC-based emissions, and include ESG dimensions in the report.
 
-# Util: Supplier ESG Analysis
-def analyze_supplier(supplier, spend):
-    emissions_factor = 0.018  # kg CO2e per GBP
-    carbon = round(spend * emissions_factor, 2)
-    scope1 = round(spend * 0.010, 2)
-    scope2 = round(spend * 0.008, 2)
+For each supplier, provide:
+- Supplier Name
+- Annual Spend
+- UNSPSC Code & Description (best match)
+- UK Gov Category + Emissions Category
+- Scope 1 & Scope 2 emissions (based on spend)
+- Total Estimated Carbon Emissions
+- Environmental Risk Score and Explanation
+- Social Risk Score and Explanation
+- Governance Risk Score and Explanation
+- Supplier Ownership & Diversity Status
+- Board Diversity
+- Sedex Membership
+- Third-party Manufacturing Sites
+- Modern Slavery Statement / Reported Factory Conditions / Whistleblowing
+- Media Sentiment (with Examples)
+- Science-Based Targets (SBTi) Status
+- London Living Wage Accreditation
+- B Corp Certification
+- Fair Payment Code Signatory
+- Confidence Level & Justification
+- Recommended Buyer Actions
+- Overall RAG Rating (Green, Amber, Red)
 
-    # Get public sentiment via OpenAI
-    prompt = f"""
-Research the ESG risk profile of {supplier}. Provide:
-- Country, Region, Ownership Structure
-- Diversity & Board diversity
-- B-Corp status, Sedex membership, LLW accreditation
-- Ethical concerns, factory conditions
-- Media sentiment
-- Risk issues in environment, social, governance
-- Confidence level (0-100) and justification
-    """
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
+Provide all this in table format for Excel export. Color code rows using the RAG status.
+"""
+
+# --- Processing Function ---
+def run_esg_chatgpt(suppliers):
+    supplier_text = "\n".join([f"{s['name']}, £{s['spend']}" for s in suppliers])
+    prompt = base_prompt + f"\n\nSuppliers:\n{supplier_text}"
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You are a sustainability analyst."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3
+    )
+    return response.choices[0].message['content']
+
+# --- Generate Excel File ---
+def generate_excel_from_text(text):
+    rows = [r.strip() for r in text.strip().split("\n") if r]
+    headers = [h.strip() for h in rows[0].split("|") if h]
+    data = [[c.strip() for c in row.split("|") if c] for row in rows[2:]]
+    df = pd.DataFrame(data, columns=headers)
+
+    # Apply RAG coloring and save
+    def rag_color(val):
+        if "Green" in val:
+            return 'background-color: lightgreen'
+        elif "Amber" in val:
+            return 'background-color: orange'
+        elif "Red" in val:
+            return 'background-color: lightcoral'
+        else:
+            return ''
+
+    styled = df.style.applymap(rag_color, subset=[col for col in df.columns if 'RAG' in col])
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        styled.to_excel(writer, index=False, sheet_name="ESG Report")
+    buffer.seek(0)
+    return buffer
+
+# --- Run and Display ---
+if submitted and suppliers_data:
+    with st.spinner("Running ESG risk assessments using GPT..."):
+        report_text = run_esg_chatgpt(suppliers_data)
+        st.markdown("### ESG Risk Report")
+        st.text_area("Raw Output", report_text, height=400)
+
+        file_buffer = generate_excel_from_text(report_text)
+        st.download_button(
+            label="📥 Download ESG Report (Excel)",
+            data=file_buffer,
+            file_name="esg_risk_report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        summary = response.choices[0].message.content.strip()
-    except Exception as e:
-        summary = f"OpenAI error: {e}"
-
-    return {
-        "Supplier": supplier,
-        "Spend": spend,
-        "Estimated CO2e (kg)": carbon,
-        "Scope 1": scope1,
-        "Scope 2": scope2,
-        "Media Sentiment": search_google_summary(f"{supplier} ESG news"),
-        "LLW": "Unknown",
-        "B-Corp": "Unknown",
-        "Sedex": "Unknown",
-        "Modern Slavery Statement": "Unknown",
-        "Factory Conditions": "Unknown",
-        "Fair Payment Code": "Unknown",
-        "Ownership": "Unknown",
-        "Diversity Status": "Unknown",
-        "Board Diversity": "Unknown",
-        "Country": "Unknown",
-        "Region": "Unknown",
-        "ESG Commentary": summary,
-        "Confidence Score": 75,
-        "Confidence Justification": "Based on OpenAI + sentiment scrape",
-        "Overall ESG RAG": "Amber",
-        "Recommended Actions": "Request supplier ESG documentation, audit factory conditions, and verify LLW & Sedex membership."
-    }
-
-# Highlight function
-def highlight_rag(row):
-    color = {'Green': 'background-color: lightgreen',
-             'Amber': 'background-color: orange',
-             'Red': 'background-color: red'}.get(row["Overall ESG RAG"], '')
-    return [color]*len(row)
-
-if submitted and data:
-    results = [analyze_supplier(d["Supplier Name"], d["Spend"]) for d in data]
-    df = pd.DataFrame(results)
-    st.success("Report Ready")
-    st.dataframe(df.style.apply(highlight_rag, axis=1))
-
-    # Download Options
-    output = st.radio("Download format", ["Excel", "PDF"])
-    if output == "Excel":
-        st.download_button("Download Excel", df.to_csv(index=False).encode('utf-8'), "esg_report.csv")
-    else:
-        class PDF(FPDF):
-            def header(self):
-                self.set_font('Arial', 'B', 14)
-                self.cell(0, 10, 'ESG Assessment Report', ln=True, align='C')
-
-            def supplier_block(self, record):
-                self.set_font('Arial', '', 10)
-                for k, v in record.items():
-                    self.multi_cell(0, 8, f"{k}: {v}")
-                self.ln(2)
-
-        pdf = PDF()
-        pdf.add_page()
-        for r in results:
-            pdf.supplier_block(r)
-
-        buf = io.BytesIO()
-        pdf.output(buf)

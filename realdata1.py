@@ -89,3 +89,6 @@ if submitted:
         buffer = io.BytesIO()
         pdf.output(buffer)
         st.download_button("Download PDF", buffer.getvalue(), file_name="esg_report.pdf", mime="application/pdf")
+else:
+    if submitted:
+        st.warning("Please provide at least one supplier name.")

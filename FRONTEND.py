@@ -2,7 +2,7 @@
 
 import streamlit as st
 import pandas as pd
-import openai
+from openai import OpenAI
 import io
 from datetime import datetime
 
@@ -11,7 +11,7 @@ st.set_page_config(page_title="ESG Risk Assessment Tool", layout="wide")
 st.title("ESG Risk Rating Tool (ChatGPT-Powered)")
 
 # --- Load API Key from secrets.toml ---
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # --- User Input ---
 st.markdown("Enter supplier name(s) and spend to generate a full ESG risk report.")
@@ -61,7 +61,7 @@ def run_esg_chatgpt(suppliers):
     supplier_text = "\n".join([f"{s['name']}, £{s['spend']}" for s in suppliers])
     prompt = base_prompt + f"\n\nSuppliers:\n{supplier_text}"
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a sustainability analyst."},
@@ -69,7 +69,7 @@ def run_esg_chatgpt(suppliers):
         ],
         temperature=0.3
     )
-    return response.choices[0].message['content']
+    return response.choices[0].message.content
 
 # --- Generate Excel File ---
 def generate_excel_from_text(text):

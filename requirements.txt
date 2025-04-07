@@ -1,10 +1,4 @@
-openai
-streamlit
-pandas
-fpdf
-streamlit
-pandas
-fpdf
-requests
-beautifulsoup4
-textblob
+streamlit>=1.31.0
+openai>=1.10.0
+pandas>=2.2.0
+xlsxwriter>=3.1.9

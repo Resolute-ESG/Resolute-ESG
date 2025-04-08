@@ -117,7 +117,8 @@ def export_to_pdf(df):
             pdf.multi_cell(0, 10, txt=f"{col}: {row[col]}")
         pdf.ln(5)
     pdf_output = io.BytesIO()
-    pdf.output(pdf_output)
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    pdf_output.write(pdf_bytes)
     return pdf_output.getvalue()
 
 

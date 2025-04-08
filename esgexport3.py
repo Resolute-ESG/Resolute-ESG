@@ -64,7 +64,12 @@ def assess_esg_risks(df):
             "Justification": ", ".join(justification),
             "News Sentiment": sentiment_summary,
             "Scope 1 & 2 Emissions (kg CO2e)": emissions,
-            "Category": category
+            "Category": category,
+            "B Corp": info.get("b_corp"),
+            "Modern Slavery Statement": info.get("modern_slavery_statement"),
+            "LLW Accredited": info.get("llw"),
+            "Fair Payment Code": info.get("fair_payment"),
+            "SBTi Committed": info.get("sbti")
         })
 
     return pd.DataFrame(results)

@@ -1,9 +1,11 @@
-# ESG Live Risk Assessment Tool - Streamlit App (Manual + Upload Entry)
+# ESG Live Risk Assessment Tool - Streamlit App (Multi-layered)
 
 import streamlit as st
 import pandas as pd
 import io
 import requests
+import os
+import csv
 from bs4 import BeautifulSoup
 from textblob import TextBlob
 from fpdf import FPDF
@@ -76,11 +78,9 @@ def assess_esg_risks(df):
 
 
 def get_company_info(supplier_name):
-    import csv
-    import os
+    headers = {"User-Agent": "Mozilla/5.0"}
     lookup_file = "enrichment_lookup.csv"
 
-    # Try to load existing enrichment data
     enrichment_lookup = {}
     if os.path.exists(lookup_file):
         with open(lookup_file, mode="r", newline="") as f:
@@ -94,16 +94,46 @@ def get_company_info(supplier_name):
                     "sbti": row["sbti"].lower() == "true"
                 }
 
-    # Fallback if not found
     result = enrichment_lookup.get(supplier_name.strip())
     if result is None:
-        result = {"b_corp": False, "modern_slavery_statement": False, "llw": False, "fair_payment": False, "sbti": False}
-        # Append unknown supplier to the enrichment file
+        result = {
+            "b_corp": False,
+            "modern_slavery_statement": False,
+            "llw": False,
+            "fair_payment": False,
+            "sbti": False
+        }
+        try:
+            search_url = lambda query: f"https://www.google.com/search?q={query}"
+            queries = {
+                "b_corp": f"{supplier_name} site:bcorporation.uk",
+                "modern_slavery_statement": f"{supplier_name} Modern Slavery Statement site:.uk",
+                "llw": f"{supplier_name} site:livingwage.org.uk",
+                "fair_payment": f"{supplier_name} Prompt Payment Code site:.uk",
+                "sbti": f"{supplier_name} site:sciencebasedtargets.org"
+            }
+            for key, query in queries.items():
+                url = search_url(query)
+                response = requests.get(url, headers=headers, timeout=5)
+                if key == "b_corp" and "bcorporation" in response.text.lower():
+                    result["b_corp"] = True
+                elif key == "modern_slavery_statement" and "modern slavery" in response.text.lower():
+                    result["modern_slavery_statement"] = True
+                elif key == "llw" and "accredited" in response.text.lower():
+                    result["llw"] = True
+                elif key == "fair_payment" and "signatory" in response.text.lower():
+                    result["fair_payment"] = True
+                elif key == "sbti" and "targets set" in response.text.lower():
+                    result["sbti"] = True
+        except Exception as e:
+            print(f"Live scrape error for {supplier_name}: {e}")
+
         with open(lookup_file, mode="a", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=["Supplier", "b_corp", "modern_slavery_statement", "llw", "fair_payment", "sbti"])
             if os.stat(lookup_file).st_size == 0:
                 writer.writeheader()
-            writer.writerow({"Supplier": supplier_name.strip(), **{k: "False" for k in result}})
+            writer.writerow({"Supplier": supplier_name.strip(), **{k: str(v) for k, v in result.items()}})
+
     return result
 
 

@@ -71,36 +71,34 @@ def assess_esg_risks(df):
 
 
 def get_company_info(supplier_name):
-    headers = {"User-Agent": "Mozilla/5.0"}
-    result = {
-        "b_corp": False,
-        "modern_slavery_statement": False,
-        "llw": False,
-        "fair_payment": False,
-        "sbti": False
-    }
-    try:
-        checks = {
-            "b_corp": f"{supplier_name} site:bcorporation.uk",
-            "modern_slavery_statement": f"{supplier_name} Modern Slavery site:.uk",
-            "llw": f"{supplier_name} site:livingwage.org.uk",
-            "fair_payment": f"{supplier_name} Fair Payment Code site:.uk",
-            "sbti": f"{supplier_name} site:sciencebasedtargets.org"
-        }
-        for key, query in checks.items():
-            response = requests.get(f"https://www.google.com/search?q={query}", headers=headers)
-            if key == "b_corp" and "bcorporation" in response.text.lower():
-                result["b_corp"] = True
-            elif key == "modern_slavery_statement" and "modern slavery statement" in response.text.lower():
-                result["modern_slavery_statement"] = True
-            elif key == "llw" and "accredited" in response.text.lower():
-                result["llw"] = True
-            elif key == "fair_payment" and "signatory" in response.text.lower():
-                result["fair_payment"] = True
-            elif key == "sbti" and "targets set" in response.text.lower():
-                result["sbti"] = True
-    except Exception as e:
-        print(f"Scraping error: {e}")
+    import csv
+    import os
+    lookup_file = "enrichment_lookup.csv"
+
+    # Try to load existing enrichment data
+    enrichment_lookup = {}
+    if os.path.exists(lookup_file):
+        with open(lookup_file, mode="r", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                enrichment_lookup[row["Supplier"]] = {
+                    "b_corp": row["b_corp"].lower() == "true",
+                    "modern_slavery_statement": row["modern_slavery_statement"].lower() == "true",
+                    "llw": row["llw"].lower() == "true",
+                    "fair_payment": row["fair_payment"].lower() == "true",
+                    "sbti": row["sbti"].lower() == "true"
+                }
+
+    # Fallback if not found
+    result = enrichment_lookup.get(supplier_name.strip())
+    if result is None:
+        result = {"b_corp": False, "modern_slavery_statement": False, "llw": False, "fair_payment": False, "sbti": False}
+        # Append unknown supplier to the enrichment file
+        with open(lookup_file, mode="a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["Supplier", "b_corp", "modern_slavery_statement", "llw", "fair_payment", "sbti"])
+            if os.stat(lookup_file).st_size == 0:
+                writer.writeheader()
+            writer.writerow({"Supplier": supplier_name.strip(), **{k: "False" for k in result}})
     return result
 
 

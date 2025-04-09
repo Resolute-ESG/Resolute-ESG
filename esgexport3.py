@@ -78,6 +78,30 @@ def assess_esg_risks(df):
 
 
 def get_company_info(supplier_name):
+    def check_sbti_local(supplier_name):
+    sbti_file = "lookups/sbti.xlsx"
+    sbti_url = "https://sciencebasedtargets.org/resources/files/SBTi-Targets-List.xlsx"
+
+    if not os.path.exists("lookups"):
+        os.makedirs("lookups")
+
+    try:
+        response = requests.get(sbti_url, timeout=10)
+        with open(sbti_file, "wb") as f:
+            f.write(response.content)
+    except Exception as e:
+        print(f"Failed to download SBTi file: {e}")
+
+    if os.path.exists(sbti_file):
+        try:
+            sbti_df = pd.read_excel(sbti_file)
+            matched = sbti_df[sbti_df["Company"].str.lower().str.contains(supplier_name.strip().lower(), na=False)]
+            return not matched.empty
+        except Exception as e:
+            print(f"Error reading SBTi file: {e}")
+            return False
+    return False
+        return False
     headers = {"User-Agent": "Mozilla/5.0"}
     lookup_file = "enrichment_lookup.csv"
 
@@ -95,6 +119,15 @@ def get_company_info(supplier_name):
                 }
 
     result = enrichment_lookup.get(supplier_name.strip())
+    if result is None:
+        result = {
+            "b_corp": False,
+            "modern_slavery_statement": False,
+            "llw": False,
+            "fair_payment": False,
+            "sbti": False
+        }
+        result["sbti"] = check_sbti_local(supplier_name)
     if result is None:
         result = {
             "b_corp": False,

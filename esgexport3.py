@@ -79,33 +79,32 @@ def assess_esg_risks(df):
 
 def get_company_info(supplier_name):
     def check_sbti_local(supplier_name):
-    sbti_file = "lookups/sbti.xlsx"
-    sbti_url = "https://sciencebasedtargets.org/resources/files/SBTi-Targets-List.xlsx"
+        sbti_file = "lookups/sbti.xlsx"
+        sbti_url = "https://sciencebasedtargets.org/resources/files/SBTi-Targets-List.xlsx"
 
-    if not os.path.exists("lookups"):
-        os.makedirs("lookups")
+        if not os.path.exists("lookups"):
+            os.makedirs("lookups")
 
-    try:
-        response = requests.get(sbti_url, timeout=10)
-        with open(sbti_file, "wb") as f:
-            f.write(response.content)
-    except Exception as e:
-        print(f"Failed to download SBTi file: {e}")
-
-    if os.path.exists(sbti_file):
         try:
-            sbti_df = pd.read_excel(sbti_file)
-            matched = sbti_df[sbti_df["Company"].str.lower().str.contains(supplier_name.strip().lower(), na=False)]
-            if not matched.empty:
-                print(f"✅ SBTi match found for '{supplier_name}': {matched.iloc[0]['Company']}")
-                return True
-            else:
-                print(f"❌ No SBTi match found for '{supplier_name}'")
+            response = requests.get(sbti_url, timeout=10)
+            with open(sbti_file, "wb") as f:
+                f.write(response.content)
         except Exception as e:
-            print(f"Error reading SBTi file: {e}")
-    return False
-    return False
+            print(f"Failed to download SBTi file: {e}")
+
+        if os.path.exists(sbti_file):
+            try:
+                sbti_df = pd.read_excel(sbti_file)
+                matched = sbti_df[sbti_df["Company"].str.lower().str.contains(supplier_name.strip().lower(), na=False)]
+                if not matched.empty:
+                    print(f"✅ SBTi match found for '{supplier_name}': {matched.iloc[0]['Company']}")
+                    return True
+                else:
+                    print(f"❌ No SBTi match found for '{supplier_name}'")
+            except Exception as e:
+                print(f"Error reading SBTi file: {e}")
         return False
+
     headers = {"User-Agent": "Mozilla/5.0"}
     lookup_file = "enrichment_lookup.csv"
 
@@ -132,14 +131,7 @@ def get_company_info(supplier_name):
             "sbti": False
         }
         result["sbti"] = check_sbti_local(supplier_name)
-    if result is None:
-        result = {
-            "b_corp": False,
-            "modern_slavery_statement": False,
-            "llw": False,
-            "fair_payment": False,
-            "sbti": False
-        }
+
         try:
             search_url = lambda query: f"https://www.google.com/search?q={query}"
             queries = {
@@ -160,8 +152,6 @@ def get_company_info(supplier_name):
                     result["llw"] = True
                 elif key == "fair_payment" and "signatory" in response.text.lower():
                     result["fair_payment"] = True
-                elif key == "sbti" and "targets set" in response.text.lower():
-                    result["sbti"] = True
         except Exception as e:
             print(f"Live scrape error for {supplier_name}: {e}")
 

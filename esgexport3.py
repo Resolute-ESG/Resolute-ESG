@@ -96,10 +96,14 @@ def get_company_info(supplier_name):
         try:
             sbti_df = pd.read_excel(sbti_file)
             matched = sbti_df[sbti_df["Company"].str.lower().str.contains(supplier_name.strip().lower(), na=False)]
-            return not matched.empty
+            if not matched.empty:
+                print(f"✅ SBTi match found for '{supplier_name}': {matched.iloc[0]['Company']}")
+                return True
+            else:
+                print(f"❌ No SBTi match found for '{supplier_name}'")
         except Exception as e:
             print(f"Error reading SBTi file: {e}")
-            return False
+    return False
     return False
         return False
     headers = {"User-Agent": "Mozilla/5.0"}

@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from textblob import TextBlob
 from fpdf import FPDF
 
+
 # -----------------------------
 # Function Definitions (MUST BE FIRST)
 # -----------------------------
@@ -266,6 +267,7 @@ with st.expander("🔄 Refresh ESG Lookup Datasets"):
         download_and_save_csv("Living Wage", "https://raw.githubusercontent.com/fake-source/llw.csv", "llw.csv")
     if st.button("🔄 Refresh Fair Payment Dataset"):
         download_and_save_csv("Fair Payment", "https://raw.githubusercontent.com/fake-source/fair_payment.csv", "fair_payment.csv")
+
 
 
 # -----------------------------

@@ -304,7 +304,7 @@ if entry_mode == "Manual Entry":
     st.subheader("📝 Enter Supplier Details")
     for i in range(supplier_count):
         with st.expander(f"Supplier {i+1}"):
-            search_term = st.text_input(f"Search and select Supplier {i+1} (Companies House)", key=f"search_{i}")
+            search_term = st.text_input(f"Search for Supplier {i+1} (Companies House)", key=f"search_{i}")
             company_options = []
             selected_company = ""
 
@@ -318,17 +318,19 @@ if entry_mode == "Manual Entry":
                     raw_matches = [
                         {
                             "title": item.get("title"),
-                            "display": f"{item.get('title')} — {item.get('company_number')} ({item.get('company_status')})"
+                            "company_number": item.get("company_number"),
+                            "status": item.get("company_status")
                         }
                         for item in items if item.get("title")
                     ]
-                    # Sort by fuzzy match score
                     scored = sorted(
                         raw_matches,
                         key=lambda x: fuzz.partial_ratio(search_term.lower(), x["title"].lower()),
                         reverse=True
                     )
-                    company_options = [r["display"] for r in scored]
+                    company_options = [
+                        f"{match['title']} — {match['company_number']} ({match['status']})" for match in scored
+                    ]
 
                     if company_options:
                         selected_company = st.selectbox(
@@ -344,7 +346,8 @@ if entry_mode == "Manual Entry":
             final_name = selected_company.split(" — ")[0] if " — " in selected_company else selected_company or search_term
             spend = st.number_input(f"Spend (£) {i+1}", min_value=0.0, key=f"spend_{i}")
             category = st.selectbox(f"Emissions Category {i+1}", list(emissions_categories.keys()), key=f"category_{i}")
-            supplier_data.append({"Supplier": final_name, "Spend": spend, "Category": category})
+            supplier_data.append({"Supplier": final_name,
+                "Company Number": selected_company.split(" — ")[1].split(" (")[0] if " — " in selected_company else "", "Spend": spend, "Category": category})
 
 elif entry_mode == "Upload CSV/Excel":
     uploaded_file = st.file_uploader("Upload Supplier List (CSV or Excel)", type=["csv", "xlsx"])

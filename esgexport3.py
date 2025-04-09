@@ -269,9 +269,10 @@ if entry_mode == "Manual Entry":
                     url = f"https://api.company-information.service.gov.uk/search/companies?q={search_term}"
                     response = requests.get(url, auth=(api_key, ""), timeout=5)
                     items = response.json().get("items", [])
-                    from difflib import get_close_matches
-                    titles = [item.get("title") for item in items if item.get("title")]
-                    company_options = get_close_matches(search_term, titles, n=5, cutoff=0.3)
+                    company_options = [
+                        f"{item.get('title')} — {item.get('company_number')} ({item.get('company_status')})"
+                        for item in items if item.get("title")
+                    ]
                     if company_options:
                         selected_company = st.selectbox(f"Select registered company for Supplier {i+1}", options=company_options, key=f"select_{i}")
                     else:
@@ -279,7 +280,7 @@ if entry_mode == "Manual Entry":
                 except Exception as e:
                     st.warning(f"Companies House lookup failed: {e}")
 
-            final_name = selected_company if selected_company else search_term
+            final_name = selected_company.split(" — ")[0] if " — " in selected_company else selected_company or search_term
             spend = st.number_input(f"Spend (£) {i+1}", min_value=0.0, key=f"spend_{i}")
             category = st.selectbox(f"Emissions Category {i+1}", list(emissions_categories.keys()), key=f"category_{i}")
             supplier_data.append({"Supplier": final_name, "Spend": spend, "Category": category})

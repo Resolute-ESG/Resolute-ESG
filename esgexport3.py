@@ -259,17 +259,26 @@ if entry_mode == "Manual Entry":
     st.subheader("📝 Enter Supplier Details")
     for i in range(supplier_count):
         with st.expander(f"Supplier {i+1}"):
-            search_term = st.text_input(f"Search Supplier {i+1}", key=f"search_{i}")
-            company_match = ""
-            if search_term:
+            company_match = st.selectbox(
+                f"Select Registered Name for Supplier {i+1}",
+                options=[""],
+                key=f"match_{i}"
+            )
+            if company_match == "" and search_term:
                 try:
                     api_key = os.getenv("COMPANIES_HOUSE_API_KEY", "demo")
                     url = f"https://api.company-information.service.gov.uk/search/companies?q={search_term}"
                     response = requests.get(url, auth=(api_key, ""), timeout=5)
                     results = response.json().get("items", [])
-                    match_list = [c.get("title") for c in results if c.get("title")] if results else []
+                    match_list = [c.get("title") for c in results if c.get("title")]
                     if match_list:
-                        company_match = st.selectbox(f"Select Registered Name for Supplier {i+1}", match_list, key=f"match_{i}")
+                        company_match = st.selectbox(
+                            f"Select Registered Name for Supplier {i+1} (Suggestions)",
+                            match_list,
+                            key=f"match_{i}_dynamic"
+                        )
+                except Exception as e:
+                    st.warning(f"Companies House lookup failed: {e}")
                 except Exception as e:
                     st.warning(f"Companies House lookup failed: {e}")
             name = company_match if company_match else search_term

@@ -269,7 +269,9 @@ if entry_mode == "Manual Entry":
                     url = f"https://api.company-information.service.gov.uk/search/companies?q={search_term}"
                     response = requests.get(url, auth=(api_key, ""), timeout=5)
                     items = response.json().get("items", [])
-                    company_options = [item.get("title") for item in items if item.get("title")]
+                    from difflib import get_close_matches
+                    titles = [item.get("title") for item in items if item.get("title")]
+                    company_options = get_close_matches(search_term, titles, n=5, cutoff=0.3)
                     if company_options:
                         selected_company = st.selectbox(f"Select registered company for Supplier {i+1}", options=company_options, key=f"select_{i}")
                     else:

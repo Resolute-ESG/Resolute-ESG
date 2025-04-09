@@ -304,12 +304,14 @@ if entry_mode == "Manual Entry":
     st.subheader("📝 Enter Supplier Details")
     for i in range(supplier_count):
         with st.expander(f"Supplier {i+1}"):
-            search_term = st.text_input(f"Search for Supplier {i+1} (Companies House)", key=f"search_{i}")
+            st.markdown("Start typing to search and select a supplier from Companies House")
+            search_term = st.text_input(f"Search Supplier {i+1}", key=f"search_{i}")
             company_options = []
             selected_company = ""
 
             if search_term:
                 try:
+                    st.write("Searching Companies House...")
                     from rapidfuzz import fuzz
                     api_key = os.getenv("COMPANIES_HOUSE_API_KEY", "demo")
                     url = f"https://api.company-information.service.gov.uk/search/companies?q={search_term}&items_per_page=20"

@@ -78,6 +78,20 @@ def assess_esg_risks(df):
 
 
 def get_company_info(supplier_name):
+    # Load pre-downloaded datasets for fast lookup
+    def load_lookup_datasets():
+        datasets = {}
+        try:
+            datasets["sbti"] = pd.read_csv("lookups/sbti.csv")
+            datasets["b_corp"] = pd.read_csv("lookups/bcorp.csv")
+            datasets["llw"] = pd.read_csv("lookups/llw.csv")
+            datasets["fair_payment"] = pd.read_csv("lookups/fair_payment.csv")
+        except Exception as e:
+            print(f"Error loading lookup datasets: {e}")
+        return datasets
+
+    datasets = load_lookup_datasets()
+
     def get_registered_company_name(supplier_name):
         api_key = os.getenv("COMPANIES_HOUSE_API_KEY", "demo")  # Replace with real key in deployment
         url = f"https://api.company-information.service.gov.uk/search/companies?q={supplier_name}"
@@ -138,15 +152,19 @@ def get_company_info(supplier_name):
                 }
 
     result = enrichment_lookup.get(supplier_name.strip())
+    supplier_clean = supplier_name.strip().lower()
+    sbti_match = any(datasets.get("sbti", pd.DataFrame()).get("Company", pd.Series()).str.lower().str.contains(supplier_clean, na=False))
+    bcorp_match = any(datasets.get("b_corp", pd.DataFrame()).get("Company", pd.Series()).str.lower().str.contains(supplier_clean, na=False))
+    llw_match = any(datasets.get("llw", pd.DataFrame()).get("Employer", pd.Series()).str.lower().str.contains(supplier_clean, na=False))
+    fair_match = any(datasets.get("fair_payment", pd.DataFrame()).get("Name", pd.Series()).str.lower().str.contains(supplier_clean, na=False))
     if result is None:
         result = {
-            "b_corp": False,
+            "b_corp": bcorp_match,
             "modern_slavery_statement": False,
-            "llw": False,
-            "fair_payment": False,
-            "sbti": False
+            "llw": llw_match,
+            "fair_payment": fair_match,
+            "sbti": sbti_match
         }
-        result["sbti"] = check_sbti_local(supplier_name)
 
         try:
             search_url = lambda query: f"https://www.google.com/search?q={query}"
@@ -224,6 +242,30 @@ def export_to_pdf(df):
     pdf_bytes = pdf.output(dest='S').encode('latin1')
     pdf_output.write(pdf_bytes)
     return pdf_output.getvalue()
+
+
+# -----------------------------
+# Lookup CSV Refresh Buttons
+# -----------------------------
+
+def download_and_save_csv(name, url, filename):
+    try:
+        df = pd.read_excel(url) if filename.endswith(".xlsx") else pd.read_csv(url)
+        os.makedirs("lookups", exist_ok=True)
+        df.to_csv(f"lookups/{filename}", index=False)
+        st.success(f"{name} dataset refreshed successfully.")
+    except Exception as e:
+        st.error(f"Failed to refresh {name}: {e}")
+
+with st.expander("🔄 Refresh ESG Lookup Datasets"):
+    if st.button("🔄 Refresh SBTi Dataset"):
+        download_and_save_csv("SBTi", "https://sciencebasedtargets.org/resources/files/SBTi-Targets-List.xlsx", "sbti.csv")
+    if st.button("🔄 Refresh B Corp Dataset"):
+        download_and_save_csv("B Corp", "https://raw.githubusercontent.com/fake-source/bcorp.csv", "bcorp.csv")
+    if st.button("🔄 Refresh LLW Dataset"):
+        download_and_save_csv("Living Wage", "https://raw.githubusercontent.com/fake-source/llw.csv", "llw.csv")
+    if st.button("🔄 Refresh Fair Payment Dataset"):
+        download_and_save_csv("Fair Payment", "https://raw.githubusercontent.com/fake-source/fair_payment.csv", "fair_payment.csv")
 
 
 # -----------------------------

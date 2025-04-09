@@ -265,15 +265,25 @@ if entry_mode == "Manual Entry":
 
             if search_term:
                 try:
+                    from rapidfuzz import fuzz
                     api_key = os.getenv("COMPANIES_HOUSE_API_KEY", "demo")
-                    url = f"https://api.company-information.service.gov.uk/search/companies?q={search_term}"
+                    url = f"https://api.company-information.service.gov.uk/search/companies?q={search_term}&items_per_page=20"
                     response = requests.get(url, auth=(api_key, ""), timeout=5)
                     items = response.json().get("items", [])
-                    company_options = [
-                        f"{item.get('title')} — {item.get('company_number')} ({item.get('company_status')})"
+                    raw_matches = [
+                        {
+                            "title": item.get("title"),
+                            "display": f"{item.get('title')} — {item.get('company_number')} ({item.get('company_status')})"
+                        }
                         for item in items if item.get("title")
                     ]
-                    if company_options:
+                    # Sort by fuzzy match score
+                    scored = sorted(
+                        raw_matches,
+                        key=lambda x: fuzz.partial_ratio(search_term.lower(), x["title"].lower()),
+                        reverse=True
+                    )
+                    company_options = [r["display"] for r in scored]                    if company_options:
                         selected_company = st.selectbox(f"Select registered company for Supplier {i+1}", options=company_options, key=f"select_{i}")
                     else:
                         st.info("No matches found on Companies House.")

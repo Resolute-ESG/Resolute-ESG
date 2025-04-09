@@ -283,8 +283,14 @@ if entry_mode == "Manual Entry":
                         key=lambda x: fuzz.partial_ratio(search_term.lower(), x["title"].lower()),
                         reverse=True
                     )
-                    company_options = [r["display"] for r in scored]                    if company_options:
-                        selected_company = st.selectbox(f"Select registered company for Supplier {i+1}", options=company_options, key=f"select_{i}")
+                    company_options = [r["display"] for r in scored]
+
+                    if company_options:
+                        selected_company = st.selectbox(
+                            f"Select registered company for Supplier {i+1}",
+                            options=company_options,
+                            key=f"select_{i}"
+                        )
                     else:
                         st.info("No matches found on Companies House.")
                 except Exception as e:

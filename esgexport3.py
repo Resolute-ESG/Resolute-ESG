@@ -1,6 +1,7 @@
 # ESG Live Risk Assessment Tool - Streamlit App (Multi-layered)
 
 import streamlit as st
+st.set_page_config(page_title="ESG Risk Rating Tool", layout="wide")
 import pandas as pd
 import io
 import requests
@@ -275,7 +276,6 @@ with st.expander("🔄 Refresh ESG Lookup Datasets"):
 # Streamlit Interface
 # -----------------------------
 
-st.set_page_config(page_title="ESG Risk Rating Tool", layout="wide")
 
 st.title("🌍 ESG Risk Rating Tool (Live Data)")
 st.markdown("Enter supplier data manually or upload a file to generate live ESG risk ratings, sentiment analysis, and mitigation actions.")

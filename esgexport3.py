@@ -78,6 +78,22 @@ def assess_esg_risks(df):
 
 
 def get_company_info(supplier_name):
+    def get_registered_company_name(supplier_name):
+        api_key = os.getenv("COMPANIES_HOUSE_API_KEY", "demo")  # Replace with real key in deployment
+        url = f"https://api.company-information.service.gov.uk/search/companies?q={supplier_name}"
+        try:
+            response = requests.get(url, auth=(api_key, ""), timeout=5)
+            if response.status_code == 200:
+                items = response.json().get("items", [])
+                if items:
+                    official_name = items[0].get("title")
+                    print(f"🔎 Matched '{supplier_name}' to Companies House: {official_name}")
+                    return official_name
+        except Exception as e:
+            print(f"Companies House lookup error: {e}")
+        return supplier_name
+
+    supplier_name = get_registered_company_name(supplier_name)
     def check_sbti_local(supplier_name):
         sbti_file = "lookups/sbti.xlsx"
         sbti_url = "https://sciencebasedtargets.org/resources/files/SBTi-Targets-List.xlsx"

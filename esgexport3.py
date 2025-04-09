@@ -259,53 +259,28 @@ if entry_mode == "Manual Entry":
     st.subheader("📝 Enter Supplier Details")
     for i in range(supplier_count):
         with st.expander(f"Supplier {i+1}"):
-            search_term = st.text_input(f"Start typing Supplier Name {i+1}", key=f"search_{i}")
-            company_match = ""
-            match_list = []
+            search_term = st.text_input(f"Search and select Supplier {i+1} (Companies House)", key=f"search_{i}")
+            company_options = []
+            selected_company = ""
+
             if search_term:
                 try:
                     api_key = os.getenv("COMPANIES_HOUSE_API_KEY", "demo")
                     url = f"https://api.company-information.service.gov.uk/search/companies?q={search_term}"
                     response = requests.get(url, auth=(api_key, ""), timeout=5)
-                    results = response.json().get("items", [])
-                    match_list = [c.get("title") for c in results if c.get("title")]
+                    items = response.json().get("items", [])
+                    company_options = [item.get("title") for item in items if item.get("title")]
+                    if company_options:
+                        selected_company = st.selectbox(f"Select registered company for Supplier {i+1}", options=company_options, key=f"select_{i}")
+                    else:
+                        st.info("No matches found on Companies House.")
                 except Exception as e:
                     st.warning(f"Companies House lookup failed: {e}")
 
-            if match_list:
-                company_match = st.selectbox(f"Select Registered Company for Supplier {i+1}", match_list, key=f"match_{i}")
-            if search_term:
-                try:
-                    api_key = os.getenv("COMPANIES_HOUSE_API_KEY", "demo")
-                    url = f"https://api.company-information.service.gov.uk/search/companies?q={search_term}"
-                    response = requests.get(url, auth=(api_key, ""), timeout=5)
-                    results = response.json().get("items", [])
-                    match_list = [c.get("title") for c in results if c.get("title")]
-                    if match_list:
-                        company_match = st.selectbox(f"Select Registered Company for Supplier {i+1}", match_list, key=f"match_{i}")
-                except Exception as e:
-                    st.warning(f"Companies House lookup failed: {e}")
-            if company_match == "" and search_term:
-                try:
-                    api_key = os.getenv("COMPANIES_HOUSE_API_KEY", "demo")
-                    url = f"https://api.company-information.service.gov.uk/search/companies?q={search_term}"
-                    response = requests.get(url, auth=(api_key, ""), timeout=5)
-                    results = response.json().get("items", [])
-                    match_list = [c.get("title") for c in results if c.get("title")]
-                    if match_list:
-                        company_match = st.selectbox(
-                            f"Select Registered Name for Supplier {i+1} (Suggestions)",
-                            match_list,
-                            key=f"match_{i}_dynamic"
-                        )
-                except Exception as e:
-                    st.warning(f"Companies House lookup failed: {e}")
-                except Exception as e:
-                    st.warning(f"Companies House lookup failed: {e}")
-            name = company_match if company_match else search_term
+            final_name = selected_company if selected_company else search_term
             spend = st.number_input(f"Spend (£) {i+1}", min_value=0.0, key=f"spend_{i}")
             category = st.selectbox(f"Emissions Category {i+1}", list(emissions_categories.keys()), key=f"category_{i}")
-            supplier_data.append({"Supplier": name, "Spend": spend, "Category": category})
+            supplier_data.append({"Supplier": final_name, "Spend": spend, "Category": category})
 
 elif entry_mode == "Upload CSV/Excel":
     uploaded_file = st.file_uploader("Upload Supplier List (CSV or Excel)", type=["csv", "xlsx"])
